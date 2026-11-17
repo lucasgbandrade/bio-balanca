@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0f14">
+<title>Bio Balança</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0f14; --panel:#121821; --panel2:#18202b; --line:#232d3a;
+  --text:#e8eef5; --muted:#8a97a8; --accent:#3ee6b5; --accent2:#4aa8ff;
+  --warn:#ffb547; --bad:#ff6b7a; --low:#7cc4ff; --radius:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;padding-bottom:84px}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;width:100%;outline:none}
+input:focus,select:focus{border-color:var(--accent)}
+.wrap{max-width:560px;margin:0 auto;padding:0 18px}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 0 10px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em;font-size:19px}
+.brand i{width:30px;height:30px;border-radius:10px;background:conic-gradient(from 200deg,var(--accent),var(--accent2),var(--accent));display:grid;place-items:center}
+.brand i:after{content:"";width:12px;height:12px;border-radius:50%;background:var(--bg)}
+.pill{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--line);padding:7px 12px;border-radius:999px}
+.dot{width:8px;height:8px;border-radius:50%;background:#55606e}
+.pill.on .dot{background:var(--accent);box-shadow:0 0 0 4px rgba(62,230,181,.18)}
+.pill.busy .dot{background:var(--warn);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.view{display:none;animation:fade .25s ease}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}}
+.gauge{position:relative;width:min(300px,78vw);aspect-ratio:1;margin:14px auto 6px}
+.gauge svg{width:100%;height:100%;transform:rotate(135deg)}
+.gauge .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.wval{font-size:64px;font-weight:800;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.wunit{font-size:16px;color:var(--muted);font-weight:600;margin-top:4px}
+.wstate{margin-top:14px;font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;background:var(--panel2);color:var(--muted)}
+.wstate.final{background:rgba(62,230,181,.14);color:var(--accent)}
+.wstate.live{background:rgba(255,181,71,.14);color:var(--warn)}
+.actions{display:flex;gap:10px;margin:16px 0 8px}
+.btn{flex:1;padding:15px;border-radius:14px;font-weight:700;font-size:15px;background:var(--panel2);border:1px solid var(--line);transition:transform .1s}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),#2bc9e8);color:#04140f;border:0}
+.btn:disabled{opacity:.4;pointer-events:none}
+.note{font-size:13px;color:var(--muted);line-height:1.5;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:10px 0}
+.note b{color:var(--text)}
+.note.warn{border-color:rgba(255,181,71,.35);background:rgba(255,181,71,.06)}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:22px 0 12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 14px 12px;position:relative;overflow:hidden}
+.card .k{font-size:12.5px;color:var(--muted);font-weight:600}
+.card .v{font-size:24px;font-weight:800;letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums}
+.card .v small{font-size:13px;color:var(--muted);font-weight:600;margin-left:3px}
+.card .tag{display:inline-block;margin-top:6px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--panel2);color:var(--muted)}
+.tag.ok{background:rgba(62,230,181,.13);color:var(--accent)}
+.tag.hi{background:rgba(255,107,122,.13);color:var(--bad)}
+.tag.mid{background:rgba(255,181,71,.13);color:var(--warn)}
+.tag.lo{background:rgba(124,196,255,.13);color:var(--low)}
+.bar{height:4px;border-radius:4px;background:var(--panel2);margin-top:10px;overflow:hidden}
+.bar span{display:block;height:100%;border-radius:4px;background:var(--accent);transition:width .6s}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:4px}
+.seg button{flex:1;padding:10px;border-radius:9px;font-weight:700;color:var(--muted)}
+.seg button.on{background:var(--panel);color:var(--text);box-shadow:0 1px 0 var(--line)}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.hist{display:flex;flex-direction:column;gap:8px}
+.hitem{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.hitem .d{font-size:12.5px;color:var(--muted)}
+.hitem .w{font-weight:800;font-size:18px}
+.hitem .m{font-size:12.5px;color:var(--muted);text-align:right}
+.hitem .x{color:var(--muted);padding:6px 8px;margin-left:6px;font-size:18px}
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+.chart svg{width:100%;height:180px;display:block}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px}
+.legend span:before{content:"";display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle;background:var(--c)}
+.log{font-family:"JetBrains Mono",monospace;font-size:11.5px;background:#070a0e;border:1px solid var(--line);border-radius:14px;padding:10px;height:220px;overflow:auto;white-space:pre-wrap;word-break:break-all;color:#9fb2c6;line-height:1.55}
+.log .src{color:var(--accent2)}
+.empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px}
+nav{position:fixed;left:0;right:0;bottom:0;background:rgba(11,15,20,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
+nav .wrap{display:flex;justify-content:space-around}
+nav button{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--muted);padding:6px 10px;border-radius:10px}
+nav button.on{color:var(--accent)}
+nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);font-weight:700;font-size:14px;padding:10px 16px;border-radius:12px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.small{font-size:12px;color:var(--muted)}
+.cmp{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-top:8px}
+.cmp .hd{font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:10px}
+.cmp .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px}
+.cmp .c{text-align:center}
+.cmp .c .k{font-size:11.5px;color:var(--muted);font-weight:600}
+.cmp .c .d{font-size:18px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+.cmp .c .p{font-size:11px;color:var(--muted);margin-top:1px}
+.d.good{color:var(--accent)} .d.bad{color:var(--warn)} .d.eq{color:var(--muted)}
+.mono{font-family:"JetBrains Mono",monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><i></i>Bio Balança</div>
+    <div class="pill" id="pill"><span class="dot"></span><span id="pillTxt">Desconectado</span></div>
+  </header>
+
+  <!-- MEDIR -->
+  <section class="view active" id="v-medir">
+    <div class="gauge">
+      <svg viewBox="0 0 200 200">
+        <defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#3ee6b5"/><stop offset="1" stop-color="#4aa8ff"/></linearGradient></defs>
+        <circle cx="100" cy="100" r="86" fill="none" stroke="#18202b" stroke-width="12" stroke-linecap="round" stroke-dasharray="405 541"/>
+        <circle id="arc" cx="100" cy="100" r="86" fill="none" stroke="url(#g)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 541" style="transition:stroke-dasharray .5s ease"/>
+      </svg>
+      <div class="center">
+        <div class="wval" id="wval">--.-</div>
+        <div class="wunit">kg</div>
+        <div class="wstate" id="wstate">Conecte a balança</div>
+      </div>
+    </div>
+
+    <div id="cmp"></div>
+    <div class="actions">
+      <button class="btn primary" id="btnConnect">Conectar balança</button>
+      <button class="btn" id="btnSave" disabled>Salvar</button>
+    </div>
+    <button class="btn" id="btnScan" style="width:100%">Não acho a balança? Buscar por sinal</button>
+    <div id="bleNote"></div>
+    <div id="scanBox" style="display:none">
+      <h2>Aparelhos próximos</h2>
+      <div class="note">Encoste o celular na balança e <b>suba nela</b>. A balança é a que tem o <b>sinal mais forte</b> e o selo <b>dados mudando</b>. Toque em <b>É esta</b>.</div>
+      <div class="hist" id="scanList"></div>
+      <button class="btn" id="btnStopScan" style="width:100%;margin-top:10px">Parar busca</button>
+    </div>
+
+    <h2>Composição corporal</h2>
+    <div class="grid" id="metrics"></div>
+    <p class="small" style="margin-top:12px;line-height:1.5">Os valores de composição são estimativas calculadas a partir do peso, da impedância e do seu perfil (fórmulas do app OKOK nas balanças OKOK; equação BIA de Sun et al., 2003 nas demais). Não substituem avaliação médica.</p>
+  </section>
+
+  <!-- HISTÓRICO -->
+  <section class="view" id="v-hist">
+    <h2>Evolução</h2>
+    <div class="chart"><svg id="chart" viewBox="0 0 320 180" preserveAspectRatio="none"></svg>
+      <div class="legend"><span style="--c:#3ee6b5">Peso (kg)</span><span style="--c:#ffb547">Gordura (%)</span></div>
+    </div>
+    <h2>Medições</h2>
+    <div class="hist" id="hist"></div>
+  </section>
+
+  <!-- PERFIL -->
+  <section class="view" id="v-perfil">
+    <h2>Seu perfil</h2>
+    <div class="field"><label>Sexo biológico</label>
+      <div class="seg" id="segSex"><button data-v="m">Masculino</button><button data-v="f">Feminino</button></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Idade</label><input id="pAge" type="number" inputmode="numeric" min="10" max="100"></div>
+      <div class="field"><label>Altura (cm)</label><input id="pHeight" type="number" inputmode="numeric" min="100" max="230"></div>
+    </div>
+    <div class="note">O perfil é usado para calcular gordura, músculo, água e taxa metabólica. Fica salvo apenas neste navegador.</div>
+  </section>
+
+  <!-- AVANÇADO -->
+  <section class="view" id="v-av">
+    <h2>Pacotes recebidos</h2>
+    <div class="log" id="log"></div>
+    <div class="actions"><button class="btn" id="btnClear">Limpar</button><button class="btn" id="btnCopy">Copiar log</button></div>
+
+    <h2>Calibrar decodificação</h2>
+    <div class="note">Balanças da linha OKOK/Chipsea usam formatos próprios. Suba na balança, espere o número ficar parado no display e digite-o aqui: o app descobre sozinho onde o peso está no pacote.</div>
+    <div class="row">
+      <input id="calW" type="number" step="0.05" inputmode="decimal" placeholder="Peso no display (kg)">
+      <button class="btn primary" id="btnCal" style="flex:0 0 auto;padding:0 18px">Calibrar</button>
+    </div>
+    <p class="small mono" id="calInfo" style="margin-top:10px"></p>
+
+    <h2>Impedância (manual)</h2>
+    <div class="note">Se a sua balança envia impedância num pacote proprietário, informe a posição (byte), a ordem e o divisor. Olhe o log: geralmente é um valor entre 300 e 900 Ω que aparece no pacote final.</div>
+    <div class="row">
+      <div class="field"><label>Byte inicial</label><input id="impOff" type="number" min="-1" placeholder="-1 = off"></div>
+      <div class="field"><label>Ordem</label><select id="impEnd"><option value="be">Big-endian</option><option value="le">Little-endian</option></select></div>
+      <div class="field"><label>Divisor</label><select id="impDiv"><option>1</option><option>10</option></select></div>
+    </div>
+    <div class="actions"><button class="btn" id="btnResetDec">Restaurar automático</button><button class="btn" id="btnDemo">Modo demonstração</button></div>
+  </section>
+</div>
+
+<nav><div class="wrap">
+  <button class="on" data-view="v-medir"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 9a5 5 0 0 1 8 0l-3 3"/></svg>Medir</button>
+  <button data-view="v-hist"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 16l4-5 3 3 5-7"/></svg>Histórico</button>
+  <button data-view="v-perfil"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</button>
+  <button data-view="v-av"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Avançado</button>
+</div></nav>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- storage seguro ---------- */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('bb.'+k); return v ? JSON.parse(v) : d }catch(e){ return d } },
+  set(k, v){ try{ localStorage.setItem('bb.'+k, JSON.stringify(v)) }catch(e){} }
+};
+const $ = s => document.querySelector(s);
+const toast = msg => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2200) };
+
+/* ---------- estado ---------- */
+let profile = store.get('profile', {sex:'m', age:30, height:175});
+let history = store.get('history', []);
+let decoder = store.get('decoder', null);       // {off, end, div} para peso
+let impCfg  = store.get('imp', {off:-1, end:'be', div:1});
+let cur = {weight:null, impedance:null, final:false, extra:{}};
+let lastPacket = null, recentW = [], device = null, demoTimer = null;
+
+/* ---------- navegação ---------- */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===b.dataset.view));
+  if(b.dataset.view==='v-hist') renderHistory();
+  window.scrollTo({top:0});
+});
+
+/* ---------- perfil ---------- */
+function renderProfile(){
+  document.querySelectorAll('#segSex button').forEach(b=>b.classList.toggle('on',b.dataset.v===profile.sex));
+  $('#pAge').value = profile.age; $('#pHeight').value = profile.height;
+}
+document.querySelectorAll('#segSex button').forEach(b=>b.onclick=()=>{profile.sex=b.dataset.v;saveProfile()});
+$('#pAge').oninput = e=>{profile.age=+e.target.value||profile.age;saveProfile()};
+$('#pHeight').oninput = e=>{profile.height=+e.target.value||profile.height;saveProfile()};
+function saveProfile(){ store.set('profile',profile); renderProfile(); renderMetrics(); renderCompare() }
+
+/* ---------- cálculo de composição ---------- */
+const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
+const roundHalf = v=>Math.floor(v) + (v-Math.floor(v)>=0.5?1:0);
+// Fórmulas do app OKOK (CsAlgoBuilder, balanças Chipsea de 4 eletrodos)
+function composeOkok(W, Z, p){
+  const H=p.height, A=p.age, m=p.sex==='m', S=m?1:0, adult=A>17, o={};
+  o.bmi = W/Math.pow(H/100,2);
+  const fatRaw = (m ? -0.3315*H + 0.6216*W + 0.0183*A + 0.0085*Z + 22.554
+                    : -0.3332*H + 0.7509*W + 0.0196*A + 0.0072*Z + 22.7193) / W * 100;
+  o.fat = clamp(fatRaw,5,45);
+  o.fatKg = o.fat*W/100; o.ffm = W - o.fatKg;
+  o.water = adult ? clamp((m ? 0.0939*H + 0.3758*W - 0.0032*A - 0.006925*Z + 0.097
+                             : 0.0877*H + 0.2973*W + 0.0128*A - 0.00603*Z + 0.5175)/W*100, 20, 85) : null;
+  o.muscle = fatRaw>45 ? W*0.55-4 : fatRaw<5 ? W*0.95-1
+           : clamp(m ? 0.2867*H + 0.3894*W - 0.0408*A - 0.01235*Z - 15.7665
+                     : 0.3186*H + 0.1934*W - 0.0206*A - 0.0132*Z - 16.4556, 20, 70);
+  o.musclePct = o.muscle/W*100;
+  o.skeletal = clamp(0.2573*H + 0.1745*W - 0.0161*A + 2.4269*S - 0.017*Z - 20.2165, 20, 70);
+  o.bone = clamp(W - o.fatKg - o.muscle, 1, 4);
+  o.visceral = adult ? clamp(roundHalf(m ? -0.2675*H + 0.42*W + 0.1462*A + 0.0123*Z + 13.9871
+                                         : -0.1651*H + 0.2628*W + 0.0649*A + 0.0024*Z + 12.3445), 1, 59) : null;
+  o.bmr = m ? 7.5037*H + 13.1523*W - 4.3376*A - 0.3486*Z - 311.7751
+            : 7.5432*H + 9.9474*W - 3.4382*A - 0.309*Z - 288.2821;
+  o.metaAge = adult ? clamp(Math.round(m ? -0.7471*H + 0.9161*W + 0.4184*A + 0.0517*Z + 54.2267
+                                         : -1.1165*H + 1.5784*W + 0.4615*A + 0.0415*Z + 83.2548),
+                            Math.max(18,A-10), Math.min(80,A+10)) : null;
+  o.protein = o.water!=null ? Math.max(0, o.musclePct - o.water) : null;
+  return o;
+}
+function compose(w, R, p){
+  if(cur.algo==='okok' && R) return composeOkok(w, R, p);
+  const H = p.height, A = p.age, male = p.sex==='m';
+  const out = {};
+  out.bmi = w / Math.pow(H/100,2);
+  if(R && R>150 && R<1500){
+    let ffm = male ? -10.68 + 0.65*H*H/R + 0.26*w + 0.02*R
+                   : -9.53  + 0.69*H*H/R + 0.17*w + 0.02*R;
+    ffm = Math.min(Math.max(ffm, w*0.4), w*0.97);
+    const fat = (w-ffm)/w*100;
+    const tbw = 0.73*ffm, bone = 0.055*ffm;
+    out.fat = fat; out.fatKg = w-ffm; out.ffm = ffm;
+    out.water = tbw/w*100;
+    out.muscle = ffm - bone;
+    out.bone = bone;
+    out.protein = Math.max(0,(ffm - tbw - bone)/w*100);
+    out.bmr = 370 + 21.6*ffm;               // Katch-McArdle
+  } else {
+    out.bmr = 10*w + 6.25*H - 5*A + (male?5:-161); // Mifflin-St Jeor
+  }
+  return out;
+}
+function rate(key, val, p){
+  const male = p.sex==='m', old = p.age>=40;
+  const R = {
+    bmi:[18.5,25,30],
+    fat: male ? (old?[11,22,28]:[8,20,25]) : (old?[23,34,40]:[21,33,39]),
+    water: male?[50,65,99]:[45,60,99],
+    protein:[16,20,99],
+    visceral:[0,10,15]
+  }[key];
+  if(!R) return null;
+  if(val<R[0]) return ['lo','Baixo'];
+  if(val<R[1]) return ['ok','Normal'];
+  if(val<R[2]) return ['mid','Alto'];
+  return ['hi','Muito alto'];
+}
+function renderMetrics(){
+  const w = cur.weight, R = cur.impedance;
+  const c = w ? compose(w, R, profile) : {};
+  const ex = cur.extra || {};
+  const items = [
+    ['IMC','bmi', c.bmi, '', 1, 40],
+    ['Gordura corporal','fat', ex.fat ?? c.fat, '%', 1, 50],
+    ['Massa gorda', null, c.fatKg, 'kg', 1],
+    ['Massa magra', null, ex.ffm ?? c.ffm, 'kg', 1],
+    ['Massa muscular', null, ex.muscle ?? c.muscle, 'kg', 1],
+    ['Músculo esquelético', null, c.skeletal, 'kg', 1],
+    ['Água corporal','water', c.water, '%', 1, 80],
+    ['Proteína','protein', c.protein, '%', 1, 30],
+    ['Massa óssea', null, c.bone, 'kg', 1],
+    ['Gordura visceral','visceral', c.visceral, '', 0, 30],
+    ['Metabolismo basal', null, ex.bmr ?? c.bmr, 'kcal', 0],
+    ['Idade metabólica', null, c.metaAge, 'anos', 0],
+    ['Impedância', null, R, 'Ω', 0],
+  ].filter(it=>!(it[2]==null && ['Músculo esquelético','Gordura visceral','Idade metabólica'].includes(it[0])));
+  const okNote = cur.algo==='okok' && R===600
+    ? `<div class="note warn" style="grid-column:1/-1">Sua balança (OKOK, formato C0) envia sempre a mesma impedância, <b>600 Ω</b>: ela não mede a bioimpedância de verdade. Os valores abaixo usam as fórmulas do app OKOK e por isso dependem só do peso, altura, idade e sexo.</div>` : '';
+  $('#metrics').innerHTML = okNote + items.map(([k,key,v,u,d,max])=>{
+    const has = v!=null && isFinite(v);
+    const r = has && key ? rate(key,v,profile) : null;
+    return `<div class="card"><div class="k">${k}</div>
+      <div class="v">${has? v.toFixed(d).replace('.',',') : '--'}<small>${u}</small></div>
+      ${r?`<span class="tag ${r[0]}">${r[1]}</span>`:''}
+      ${has&&max?`<div class="bar"><span style="width:${Math.min(100,v/max*100)}%;background:var(${r&&r[0]==='hi'?'--bad':r&&r[0]==='mid'?'--warn':r&&r[0]==='lo'?'--low':'--accent'})"></span></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+/* ---------- peso na tela ---------- */
+function showWeight(w, final){
+  cur.weight = w; cur.final = final;
+  $('#wval').textContent = w.toFixed(1).replace('.',',');
+  $('#arc').setAttribute('stroke-dasharray', `${Math.min(405, w/150*405)} 541`);
+  const st = $('#wstate');
+  st.className = 'wstate ' + (final?'final':'live');
+  st.textContent = final ? (cur.impedance ? 'Medição completa ✓' : 'Peso estável ✓') : 'Medindo…';
+  $('#btnSave').disabled = !final;
+  if(!final) cur.savedT = null;
+  renderMetrics(); renderCompare();
+}
+/* comparação com a última medição salva */
+function renderCompare(){
+  const el = $('#cmp');
+  if(!cur.weight){ el.innerHTML=''; return }
+  const prev = history.find(h=>h.t!==cur.savedT);
+  if(!prev){ el.innerHTML='<div class="cmp"><div class="hd" style="margin:0;text-align:center">Primeira medição: salve para comparar nas próximas.</div></div>'; return }
+  const c = compose(cur.weight, cur.impedance, profile);
+  const rows = [
+    ['Peso', cur.weight, prev.w, 'kg', true],
+    ['Gordura', c.fat, prev.fat, '%', true],
+    ['Músculo', c.muscle, prev.muscle, 'kg', false],
+    ['IMC', c.bmi, prev.bmi, '', true],
+  ].filter(r=>r[1]!=null && r[2]!=null);
+  const days = Math.floor((new Date().setHours(0,0,0,0) - new Date(prev.t).setHours(0,0,0,0))/86400000);
+  const when = days<=0 ? 'hoje' : days===1 ? 'ontem' : `há ${days} dias`;
+  const f = (v,d=1)=>Math.abs(v).toFixed(d).replace('.',',');
+  el.innerHTML = `<div class="cmp"><div class="hd">Comparado com ${new Date(prev.t).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} (${when})</div><div class="cols">`+
+    rows.map(([k,now,old,u,lowerBetter])=>{
+      const d = now-old, eq = Math.abs(d)<0.05;
+      const cls = eq ? 'eq' : ((d<0)===lowerBetter ? 'good' : 'bad');
+      return `<div class="c"><div class="k">${k}</div><div class="d ${cls}">${eq?'=':(d<0?'▼ ':'▲ ')+f(d)}<small style="font-size:11px">${eq?'':u}</small></div><div class="p">antes ${f(old)}${u}</div></div>`;
+    }).join('') + '</div></div>';
+}
+function onWeight(w, opts={}){
+  if(!(w>2 && w<300)) return;
+  // mantém o resultado final na tela enquanto a balança repete pacotes parecidos
+  if(cur.final && opts.stable===false && cur.weight && Math.abs(w-cur.weight)<0.3) return;
+  if(opts.impedance) cur.impedance = opts.impedance;
+  if(opts.extra) cur.extra = {...cur.extra, ...opts.extra};
+  recentW.push({w, t:Date.now()}); recentW = recentW.slice(-6);
+  // estável: flag explícita, ou 4 leituras iguais seguidas
+  let stable = opts.stable === true;
+  if(opts.stable == null && recentW.length>=4){
+    const last = recentW.slice(-4).map(x=>x.w);
+    stable = Math.max(...last)-Math.min(...last) < 0.06;
+  }
+  showWeight(w, stable);
+}
+
+/* ---------- log ---------- */
+const hex = u8 => [...u8].map(b=>b.toString(16).padStart(2,'0')).join(' ');
+function log(src, u8){
+  const el = $('#log');
+  const line = document.createElement('div');
+  const t = new Date().toLocaleTimeString('pt-BR');
+  line.innerHTML = `<span class="src">${t} ${src}</span>\n${u8?hex(u8):''}`;
+  el.appendChild(line);
+  while(el.children.length>300) el.firstChild.remove();
+  el.scrollTop = el.scrollHeight;
+}
+function logText(t){ const el=$('#log'); const d=document.createElement('div'); d.textContent='› '+t; el.appendChild(d); el.scrollTop=el.scrollHeight }
+
+/* ---------- parsers ---------- */
+function rd(u8, off, end){
+  if(off<0 || off+1>=u8.length) return null;
+  return end==='le' ? u8[off] | (u8[off+1]<<8) : (u8[off]<<8) | u8[off+1];
+}
+// Bluetooth SIG: Weight Measurement 0x2A9D
+function parseWeightMeasurement(u8){
+  const flags=u8[0], imperial=flags&1;
+  const raw = u8[1]|(u8[2]<<8);
+  const w = imperial ? raw*0.01*0.453592 : raw*0.005;
+  onWeight(w, {stable:true});
+}
+// Bluetooth SIG: Body Composition Measurement 0x2A9C
+function parseBodyComp(u8){
+  const flags = u8[0]|(u8[1]<<8); const imp = flags&1; const mres = imp?0.01*0.453592:0.005;
+  let i=2; const u16=()=>{const v=u8[i]|(u8[i+1]<<8); i+=2; return v};
+  const ex = {fat: u16()*0.1}; let R=null, w=null;
+  if(flags&0x02) i+=7; if(flags&0x04) i+=1;
+  if(flags&0x08) ex.bmr = u16()/4.184; // kJ → kcal
+  if(flags&0x10) u16();
+  if(flags&0x20) ex.muscle = u16()*mres;
+  if(flags&0x40) ex.ffm = u16()*mres;
+  if(flags&0x80) u16(); if(flags&0x100) u16();
+  if(flags&0x200) R = u16()*0.1;
+  if(flags&0x400) w = u16()*mres;
+  if(w) onWeight(w,{stable:true, impedance:R, extra:ex});
+  else { cur.extra={...cur.extra,...ex}; if(R) cur.impedance=R; renderMetrics() }
+}
+// Pacotes proprietários (OKOK / Chipsea e similares)
+/* OKOK / Chipsea "C0" (anúncio BLE): company ID = [0xC0, contador], depois 13 bytes:
+   [0,1] peso BE  [2,3] impedância BE ÷10  [4,5] ID do produto  [6] atributos  [7..12] MAC
+   atributos: bit0 = medição final, bits1-2 = casas decimais, bits3-4 = unidade (0 kg, 1 jin, 2 lb) */
+let okokInfo = null;
+function isOkokC0(u8){ return u8.length>=15 && u8[0]===0xC0 }
+function parseOkokC0(u8){
+  if(!isOkokC0(u8)) return false;
+  lastPacket = u8;
+  const attr = u8[8], res = (attr>>1)&3, unit = (attr>>3)&3, final = !!(attr&1);
+  let w = ((u8[2]<<8)|u8[3]) / Math.pow(10,res);
+  if(unit===1) w = w/2; else if(unit===2) w = w*0.45359237;
+  const R = ((u8[4]<<8)|u8[5]) / 10;
+  if(!okokInfo){
+    okokInfo = {product:'0x'+hex(u8.slice(6,8)).replace(' ',''), mac:[...u8.slice(9,15)].reverse().map(b=>b.toString(16).padStart(2,'0')).join(':').toUpperCase()};
+    logText(`balança OKOK (formato C0) • produto ${okokInfo.product} • MAC ${okokInfo.mac}`);
+  }
+  cur.algo = 'okok';
+  if(w>0) onWeight(w, {stable:final, impedance: R>0 ? R : null});
+  return true;
+}
+function parseVendor(u8){
+  if(parseOkokC0(u8)) return;
+  lastPacket = u8;
+  let w = null;
+  if(decoder){
+    const raw = rd(u8, decoder.off, decoder.end);
+    if(raw!=null) w = raw/decoder.div;
+  } else {
+    // heurística: primeiro valor plausível que está variando entre pacotes
+    w = guessWeight(u8);
+  }
+  let R = null;
+  if(impCfg.off>=0){ const r = rd(u8, impCfg.off, impCfg.end); if(r) R = r/impCfg.div; }
+  if(w!=null) onWeight(w, R?{impedance:R}:{});
+}
+let prevPkt = null;
+function guessWeight(u8){
+  const cands=[];
+  for(let off=0; off<u8.length-1; off++) for(const end of ['be','le']) for(const div of [100,10]){
+    const v = rd(u8,off,end)/div;
+    if(v>5 && v<250) cands.push({off,end,div,v,chg: prevPkt && prevPkt.length===u8.length && rd(prevPkt,off,end)!==rd(u8,off,end)});
+  }
+  prevPkt = u8;
+  const c = cands.find(c=>c.chg && c.div===100) || cands.find(c=>c.chg) || null;
+  return c ? c.v : null;
+}
+
+/* ---------- calibração ---------- */
+$('#btnCal').onclick = ()=>{
+  const target = parseFloat(($('#calW').value||'').replace(',','.'));
+  if(!target) return toast('Digite o peso do display');
+  if(!lastPacket) return toast('Nenhum pacote recebido ainda');
+  let best=null;
+  for(let off=0; off<lastPacket.length-1; off++) for(const end of ['be','le']) for(const div of [100,10,20,200]){
+    const v = rd(lastPacket,off,end)/div, err = Math.abs(v-target);
+    if(err<0.15 && (!best || err<best.err)) best={off,end,div,err};
+  }
+  if(!best) { $('#calInfo').textContent='Não encontrei esse valor no último pacote. Tente de novo com o peso parado.'; return }
+  decoder = {off:best.off, end:best.end, div:best.div}; store.set('decoder',decoder);
+  $('#calInfo').textContent = `Peso: byte ${best.off}, ${best.end.toUpperCase()}, ÷${best.div}`;
+  toast('Calibrado!'); parseVendor(lastPacket);
+};
+$('#btnResetDec').onclick = ()=>{ decoder=null; store.set('decoder',null); impCfg={off:-1,end:'be',div:1}; store.set('imp',impCfg); loadImp(); $('#calInfo').textContent=''; toast('Decodificação automática') };
+function loadImp(){ $('#impOff').value=impCfg.off; $('#impEnd').value=impCfg.end; $('#impDiv').value=String(impCfg.div) }
+['#impOff','#impEnd','#impDiv'].forEach(s=>$(s).onchange=()=>{ impCfg={off:+$('#impOff').value, end:$('#impEnd').value, div:+$('#impDiv').value}; store.set('imp',impCfg) });
+
+/* ---------- Bluetooth ---------- */
+const SERVICES = [0x181d,0x181b,0x180f,0x180a,0xfff0,0xffe0,0xffb0,0xffa0,0xfee7,0xffc0,0xffd0,
+  '0000ffe0-0000-1000-8000-00805f9b34fb','6e400001-b5a3-f393-e0a9-e50e24dcca9e'];
+function setPill(state, txt){ const p=$('#pill'); p.className='pill '+(state||''); $('#pillTxt').textContent=txt }
+function bleSupportNote(){
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua);
+  let msg = '';
+  if(!window.isSecureContext) msg = 'O Bluetooth só funciona em página <b>https</b>.';
+  else if(!navigator.bluetooth) msg = ios
+    ? 'O Safari do iPhone não tem Web Bluetooth. Abra este app no navegador <b>Bluefy</b> (App Store), ou use um Android com Chrome.'
+    : 'Este navegador não tem Web Bluetooth. Use o <b>Chrome</b> ou <b>Edge</b> no Android, Windows, Mac ou Linux.';
+  $('#bleNote').innerHTML = msg ? `<div class="note warn">${msg}<br>Enquanto isso, teste em <b>Avançado → Modo demonstração</b>.</div>` : '';
+  return !msg;
+}
+$('#btnConnect').onclick = async ()=>{
+  if(device && device.gatt && device.gatt.connected){ device.gatt.disconnect(); return }
+  stopDemo();
+  if(!bleSupportNote()) return;
+  try{
+    setPill('busy','Procurando…');
+    // IDs de fabricante usados por balanças OKOK/Chipsea (sem isto o Chrome esconde os dados do anúncio)
+    const MFR = [0xF0FF,0xFFFF,0x00C0,0xC0C0];
+    for(let i=0;i<256;i++){ MFR.push((i<<8)|0xCA); MFR.push((i<<8)|0xC0) }
+    let opts = {acceptAllDevices:true, optionalServices:SERVICES, optionalManufacturerData:[...new Set(MFR)]};
+    try{ device = await navigator.bluetooth.requestDevice(opts) }
+    catch(e){ if(e.name==='TypeError'){ delete opts.optionalManufacturerData; device = await navigator.bluetooth.requestDevice(opts) } else throw e }
+    lockedId = device.id; store.set('lockedId', lockedId);
+    device.addEventListener('gattserverdisconnected', ()=>{ setPill('','Desconectado'); $('#btnConnect').textContent='Conectar balança'; logText('desconectado') });
+    logText('dispositivo: '+(device.name||device.id));
+    // balanças "broadcast" (muitas OKOK) mandam o peso no anúncio BLE
+    if(device.watchAdvertisements){
+      let advN = 0;
+      device.addEventListener('advertisementreceived', ev=>{
+        advN++;
+        if(advN<=3 || advN%20===0) logText(`anúncio #${advN} sinal ${ev.rssi} dBm, fabricante [${[...ev.manufacturerData.keys()].map(k=>'0x'+k.toString(16)).join(',')}], serviços [${[...ev.serviceData.keys()].map(k=>k.slice(4,8)).join(',')}]`);
+        ev.serviceData.forEach((dv,uuid)=>{ const u8=new Uint8Array(dv.buffer,dv.byteOffset,dv.byteLength); log('SVC '+uuid.slice(4,8), u8); parseVendor(u8) });
+        ev.manufacturerData.forEach((dv,cid)=>{
+          const d = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+          const u8 = new Uint8Array(d.length+2); u8[0]=cid&255; u8[1]=cid>>8; u8.set(d,2);
+          log('ADV 0x'+cid.toString(16), u8); parseVendor(u8);
+        });
+      });
+      device.watchAdvertisements().then(()=>logText('ouvindo anúncios')).catch(()=>{});
+    }
+    setPill('busy','Conectando…');
+    const server = await device.gatt.connect();
+    const services = await server.getPrimaryServices();
+    let n=0;
+    for(const s of services){
+      let chars=[]; try{ chars = await s.getCharacteristics() }catch(e){ continue }
+      for(const c of chars){
+        if(!(c.properties.notify||c.properties.indicate)) continue;
+        try{
+          await c.startNotifications(); n++;
+          const id = c.uuid.slice(4,8);
+          c.addEventListener('characteristicvaluechanged', e=>{
+            const u8 = new Uint8Array(e.target.value.buffer);
+            log(id, u8);
+            if(id==='2a9d') parseWeightMeasurement(u8);
+            else if(id==='2a9c') parseBodyComp(u8);
+            else if(id==='2a19') logText('bateria '+u8[0]+'%');
+            else parseVendor(u8);
+          });
+          logText('inscrito em '+s.uuid.slice(4,8)+'/'+id);
+        }catch(e){}
+      }
+    }
+    setPill('on', device.name || 'Conectado');
+    $('#btnConnect').textContent='Desconectar';
+    $('#wstate').className='wstate'; $('#wstate').textContent='Suba na balança';
+    if(!n) logText('nenhuma característica de notificação — tentando só anúncios');
+    toast('Balança conectada');
+  }catch(e){
+    if(device && device.watchAdvertisements && e.name==='NetworkError'){
+      setPill('on','Modo anúncio'); logText('sem conexão GATT, usando anúncios');
+      $('#wstate').className='wstate'; $('#wstate').textContent='Suba na balança';
+      setTimeout(()=>{
+        if(!lastPacket){
+          logText('nenhum dado no anúncio — use "Buscar por sinal"');
+          $('#bleNote').innerHTML='<div class="note warn">A balança foi encontrada, mas ainda não chegou peso. Toque em <b>Buscar por sinal</b>: ela já vem selecionada.</div>';
+        }
+      }, 8000);
+      return;
+    }
+    setPill('','Desconectado');
+    if(e.name!=='NotFoundError') { logText('erro: '+e.message); toast('Não foi possível conectar') }
+    if(e.name==='SecurityError') $('#bleNote').innerHTML='<div class="note warn">O navegador bloqueou o Bluetooth nesta janela. Abra o app em uma aba própria (https) no Chrome.</div>';
+  }
+};
+
+/* ---------- busca por sinal (anúncios BLE) ---------- */
+let scan=null, seen=new Map(), lockedId=store.get('lockedId',null), scanRender=0;
+$('#btnScan').onclick = async ()=>{
+  stopDemo();
+  if(!bleSupportNote()) return;
+  if(!navigator.bluetooth.requestLEScan){
+    $('#bleNote').innerHTML='<div class="note warn">A busca por sinal está desligada no Chrome. Abra <b>chrome://flags</b>, procure <b>Experimental Web Platform features</b>, marque <b>Enabled</b> e toque em <b>Relaunch</b>. Depois abra o app de novo.</div>';
+    return;
+  }
+  try{
+    scan = await navigator.bluetooth.requestLEScan({acceptAllAdvertisements:true, keepRepeatedDevices:true});
+  }catch(e){ logText('busca: '+e.message); toast('Não foi possível iniciar a busca'); return }
+  seen.clear();
+  navigator.bluetooth.addEventListener('advertisementreceived', onScanAdv);
+  setPill('busy','Buscando…'); $('#scanBox').style.display='block'; renderScan();
+};
+$('#btnStopScan').onclick = stopScan;
+function stopScan(){
+  if(scan){ try{ scan.stop() }catch(e){} scan=null }
+  navigator.bluetooth && navigator.bluetooth.removeEventListener('advertisementreceived', onScanAdv);
+  $('#scanBox').style.display='none'; setPill('','Desconectado');
+}
+function onScanAdv(ev){
+  const id = ev.device.id;
+  const s = seen.get(id) || {id, name:'', rssi:-127, data:'', changes:0};
+  s.name = ev.device.name || ev.name || s.name; if(ev.rssi!=null) s.rssi = ev.rssi; s.t = Date.now();
+  const packets = [];
+  ev.manufacturerData.forEach((dv,cid)=>{
+    const d = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+    const u8 = new Uint8Array(d.length+2); u8[0]=cid&255; u8[1]=cid>>8; u8.set(d,2); packets.push(u8);
+  });
+  ev.serviceData && ev.serviceData.forEach((dv)=>packets.push(new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength)));
+  const h = packets.map(hex).join('|');
+  if(h && s.data && h!==s.data) s.changes++;
+  if(h) s.data = h;
+  seen.set(id, s);
+  // seleciona sozinho a primeira balança OKOK C0 encontrada
+  if(packets.some(isOkokC0)){
+    s.isC0 = true;
+    const lockedDev = seen.get(lockedId);
+    if(id!==lockedId && (!lockedId || !lockedDev || !lockedDev.isC0)){
+      lockedId = id; store.set('lockedId', lockedId); toast('Balança OKOK encontrada');
+    }
+  }
+  if(id===lockedId && h){
+    if(h!==s.lastLogged){ s.lastLogged=h; packets.forEach(u8=>log('ADV '+(s.name||'balança'), u8)) }
+    packets.forEach(u8=>parseVendor(u8));
+    setPill('on', s.name || 'Balança');
+  }
+  if(Date.now()-scanRender>700){ scanRender=Date.now(); renderScan() }
+}
+function bars(r){ return r>-60?'▮▮▮▮':r>-70?'▮▮▮▯':r>-80?'▮▮▯▯':'▮▯▯▯' }
+function renderScan(){
+  const list = [...seen.values()].filter(s=>Date.now()-s.t<15000).sort((a,b)=>b.rssi-a.rssi).slice(0,15);
+  $('#scanList').innerHTML = list.length ? list.map(s=>`<div class="hitem" style="${s.id===lockedId?'border-color:var(--accent)':''}">
+    <div><div class="w" style="font-size:15px">${s.name ? s.name.replace(/</g,'&lt;') : 'Sem nome'}</div>
+      <div class="d"><span class="mono">${bars(s.rssi)}</span> ${s.rssi} dBm ${s.changes>2?'<span class="tag ok" style="margin-left:4px">dados mudando</span>':''}</div></div>
+    <button class="btn ${s.id===lockedId?'primary':''}" data-id="${s.id}" style="flex:0 0 auto;padding:10px 14px">${s.id===lockedId?'Selecionada':'É esta'}</button>
+  </div>`).join('') : '<div class="empty">Procurando aparelhos…</div>';
+  $('#scanList').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    lockedId=b.dataset.id; store.set('lockedId',lockedId); prevPkt=null; recentW=[];
+    $('#wstate').className='wstate'; $('#wstate').textContent='Suba na balança';
+    toast('Balança selecionada'); renderScan();
+  });
+}
+
+/* ---------- demonstração ---------- */
+function stopDemo(){ if(demoTimer){ clearInterval(demoTimer); demoTimer=null } }
+$('#btnDemo').onclick = ()=>{
+  stopDemo(); document.querySelector('nav button').click();
+  cur = {weight:null, impedance:null, final:false, extra:{}}; recentW=[];
+  setPill('on','Demonstração');
+  const target = 70 + Math.random()*12; let w = 0, step = 0;
+  demoTimer = setInterval(()=>{
+    step++;
+    w = step<12 ? target*(1-Math.exp(-step/3)) + (Math.random()-.5)*0.6 : target;
+    const raw = Math.round(w*100);
+    const u8 = new Uint8Array([0xca,0x10,raw>>8,raw&255,0,0,0,0]);
+    if(step>=16){ const R=420+Math.round(Math.random()*120); u8[4]=R>>8; u8[5]=R&255; cur.impedance=R }
+    log('demo', u8);
+    onWeight(raw/100, {stable: step>=16});
+    if(step>=16){ stopDemo(); toast('Medição concluída') }
+  }, 280);
+};
+
+/* ---------- histórico ---------- */
+$('#btnSave').onclick = ()=>{
+  if(!cur.weight) return;
+  const c = compose(cur.weight, cur.impedance, profile);
+  const t = Date.now();
+  history.unshift({t, w:+cur.weight.toFixed(2), r:cur.impedance||null, fat: cur.extra.fat ?? (c.fat!=null?+c.fat.toFixed(1):null), bmi:+c.bmi.toFixed(1),
+    muscle: c.muscle!=null?+c.muscle.toFixed(1):null, water: c.water!=null?+c.water.toFixed(1):null, visceral: c.visceral ?? null});
+  store.set('history', history); toast('Medição salva'); $('#btnSave').disabled=true;
+  cur.savedT = t; renderCompare();
+};
+function renderHistory(){
+  const el=$('#hist');
+  if(!history.length){ el.innerHTML='<div class="empty">Nenhuma medição salva ainda.</div>'; $('#chart').innerHTML=''; return }
+  el.innerHTML = history.map((h,i)=>`<div class="hitem">
+    <div><div class="w">${h.w.toFixed(1).replace('.',',')} kg</div><div class="d">${new Date(h.t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}</div></div>
+    <div style="display:flex;align-items:center"><div class="m">IMC ${String(h.bmi).replace('.',',')}<br>${h.fat!=null?'Gordura '+String(h.fat).replace('.',',')+'%':'sem impedância'}</div>
+    <button class="x" data-i="${i}" aria-label="Apagar">×</button></div></div>`).join('');
+  el.querySelectorAll('.x').forEach(b=>b.onclick=()=>{ history.splice(+b.dataset.i,1); store.set('history',history); renderHistory() });
+  drawChart();
+}
+function drawChart(){
+  const pts = history.slice(0,30).reverse(), W=320, H=180, P=14;
+  if(pts.length<2){ $('#chart').innerHTML='<text x="160" y="95" fill="#8a97a8" font-size="12" text-anchor="middle">Salve 2 medições para ver o gráfico</text>'; return }
+  const line = (vals, color)=>{
+    const v = vals.filter(x=>x!=null); if(v.length<2) return '';
+    let mn=Math.min(...v), mx=Math.max(...v); if(mx-mn<1){mn-=.5;mx+=.5}
+    const xy = vals.map((y,i)=> y==null?null:[P+i*(W-2*P)/(vals.length-1), H-P-(y-mn)/(mx-mn)*(H-2*P)]).filter(Boolean);
+    const d = xy.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`+
+      xy.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="${color}"/>`).join('');
+  };
+  let grid=''; for(let i=0;i<4;i++){ const y=P+i*(H-2*P)/3; grid+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#232d3a" stroke-dasharray="3 4"/>` }
+  $('#chart').innerHTML = grid + line(pts.map(p=>p.fat),'#ffb547') + line(pts.map(p=>p.w),'#3ee6b5');
+}
+
+$('#btnClear').onclick = ()=>{ $('#log').innerHTML='' };
+$('#btnCopy').onclick = async ()=>{ try{ await navigator.clipboard.writeText($('#log').innerText); toast('Log copiado') }catch(e){ toast('Não foi possível copiar') } };
+
+/* ---------- init ---------- */
+renderProfile(); renderMetrics(); loadImp(); bleSupportNote();
+if(decoder) $('#calInfo').textContent = `Peso: byte ${decoder.off}, ${decoder.end.toUpperCase()}, ÷${decoder.div}`;
+</script>
+</body>
+</html>
