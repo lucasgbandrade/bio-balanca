@@ -21,7 +21,16 @@ App web que lê o peso de balanças de bioimpedância Bluetooth direto do navega
 - **Gráfico de evolução** por métrica, com média móvel de 7 dias e linha da meta.
 - **Lembrete de pesagem:** evento repetido na agenda do celular e aviso no app quando a pesagem atrasa.
 - **Backup:** exportar e importar o histórico (.json) e exportar planilha (.csv).
-- **Conexões:** área com a balança salva, busca por sinal e pareamento. Integração com o Samsung Galaxy Watch planejada.
+- **Conexões:** área com a balança salva, busca por sinal e pareamento.
+- **Samsung Galaxy Watch:** importa as medições de bioimpedância real do relógio a partir da exportação do Samsung Health (arquivo `com.samsung.health.weight…` em .csv ou .json). Elas entram no histórico com o selo ⌚ e aparecem em destaque na tela Medir.
+
+### Como trazer as medições do Galaxy Watch
+
+1. No relógio: Samsung Health → **Composição corporal** → **Medir**.
+2. No celular: Samsung Health → menu → **Configurações** → **Baixar dados pessoais**. Os arquivos vão para **Downloads → Samsung Health**.
+3. No Bio Balança: **Conexões → Importar do Samsung Health** e escolha o arquivo `com.samsung.health.weight…`.
+
+A leitura automática, sem exportar, exige um app Android nativo com o SDK de dados da Samsung ou o Health Connect; um app web não tem acesso a esses dados.
 - **Histórico** com a composição completa de cada medição.
 - **Perfil** (sexo, idade e altura) usado nos cálculos.
 - **Aba Avançado**: log dos dados recebidos, calibração, configuração manual da impedância e modo demonstração.

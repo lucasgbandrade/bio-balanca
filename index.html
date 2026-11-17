@@ -178,6 +178,7 @@ nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;st
 
     <div id="cmp"></div>
     <div id="goals"></div>
+    <div id="watchMain"></div>
     <div class="actions">
       <button class="btn primary" id="btnRead">Ler balança</button>
       <button class="btn" id="btnSave" disabled>Salvar</button>
@@ -228,14 +229,21 @@ nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;st
     <p class="small" style="margin-top:10px;line-height:1.5"><b>Buscar por sinal</b> serve para balanças que só transmitem o peso (como as OKOK). <b>Parear</b> serve para balanças que aceitam conexão Bluetooth direta.</p>
 
     <h2>Relógio</h2>
-    <div class="acard">
+    <div class="acard" id="watchCard">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div class="t" style="font-size:18px;margin:0">⌚ Samsung Galaxy Watch</div>
-        <span class="tag mid" style="margin:0">Em breve</span>
+        <span class="tag ok" id="watchTag" style="margin:0">Importação</span>
       </div>
-      <div class="s">Os Galaxy Watch medem a bioimpedância de verdade pelos sensores do relógio. A ideia é trazer gordura, músculo, água e metabolismo medidos por ele para o histórico, junto com o peso da balança.</div>
-      <div class="s" style="margin-top:8px">Esses dados ficam no app Samsung Health, que não se conecta direto a páginas da web. Por isso essa integração vai precisar de uma versão do app instalada no Android, lendo os dados pelo Health Connect, ou da importação do arquivo exportado pelo Samsung Health.</div>
+      <div class="s">O relógio mede a bioimpedância de verdade. Traga as medições dele para o histórico: gordura, massa magra, músculo esquelético, água e metabolismo medidos, junto com o peso da balança.</div>
+      <div id="watchStatus" class="s" style="margin-top:8px"></div>
     </div>
+    <label class="btn primary" style="display:block;text-align:center;width:100%">⌚ Importar do Samsung Health<input type="file" id="fileWatch" accept=".csv,.json,text/csv,application/json" multiple hidden></label>
+    <div class="note" style="line-height:1.6">
+      <b>1. Meça no relógio:</b> abra o Samsung Health no relógio → <b>Composição corporal</b> → <b>Medir</b>, com o dedo médio e o anelar nas duas teclas, em jejum e com os braços afastados do corpo.<br>
+      <b>2. Exporte no celular:</b> no app Samsung Health, abra o menu → <b>Configurações</b> → <b>Baixar dados pessoais</b>. Os arquivos vão para a pasta <b>Downloads → Samsung Health</b>.<br>
+      <b>3. Importe aqui:</b> toque no botão acima e escolha o arquivo que começa com <span class="mono">com.samsung.health.weight</span> (ou <span class="mono">body_composition</span>), em .csv ou .json.
+    </div>
+    <p class="small" style="line-height:1.5">A leitura direta e automática do relógio, sem exportar, depende de um app Android instalado com o kit de dados da Samsung ou o Health Connect; um app web não tem acesso a esses dados. Fica para uma próxima etapa.</p>
 
     <h2>Outras integrações</h2>
     <div class="acard">
@@ -411,6 +419,93 @@ function renderRemind(){
   el.innerHTML = `<div class="note warn" style="margin-top:4px">⏰ <b>Hora de se pesar.</b> Sua última pesagem foi ${gap===1?'ontem':`há ${gap} dias`}.</div>`;
 }
 
+/* ---------- Samsung Health (Galaxy Watch) ---------- */
+function parseCSVLine(line){
+  const out=[]; let cur='', q=false;
+  for(let i=0;i<line.length;i++){ const ch=line[i];
+    if(q){ if(ch==='"'){ if(line[i+1]==='"'){cur+='"';i++} else q=false } else cur+=ch }
+    else if(ch==='"') q=true; else if(ch===','){ out.push(cur); cur='' } else cur+=ch;
+  }
+  out.push(cur); return out;
+}
+function shTime(v, off){
+  if(v==null || v==='') return null;
+  if(/^\d{12,}$/.test(String(v))) return +v;                       // milissegundos
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if(!m) return null;
+  return Date.UTC(+m[1], m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0)); // Samsung grava start_time em UTC
+}
+function shRecords(text, name){
+  const recs = [];
+  const t = text.replace(/^﻿/,'').trim();
+  if(t.startsWith('[') || t.startsWith('{')){
+    let data = JSON.parse(t); if(!Array.isArray(data)) data = data.data || data.records || [data];
+    data.forEach(o=>{ const r={}; Object.keys(o).forEach(k=>r[k.split('.').pop().toLowerCase()] = o[k]); recs.push(r) });
+    return recs;
+  }
+  const lines = t.split(/\r?\n/);
+  const hi = lines.findIndex(l=>/start_time|create_time/i.test(l) && /weight|body_fat/i.test(l));
+  if(hi<0) return recs;
+  const head = parseCSVLine(lines[hi]).map(h=>h.trim().split('.').pop().toLowerCase());
+  for(let i=hi+1;i<lines.length;i++){
+    if(!lines[i].trim()) continue;
+    const cols = parseCSVLine(lines[i]), r = {};
+    head.forEach((h,k)=>{ if(h && r[h]==null) r[h] = cols[k] });
+    recs.push(r);
+  }
+  return recs;
+}
+function shToEntry(r){
+  const n = k=>{ const v = parseFloat(String(r[k]??'').replace(',','.')); return isFinite(v) && v>0 ? v : null };
+  const t = shTime(r.start_time ?? r.create_time, r.time_offset);
+  const fat = n('body_fat'), fatKg = n('body_fat_mass'), skeletal = n('skeletal_muscle_mass'), waterL = n('total_body_water');
+  if(!t || (fat==null && fatKg==null && skeletal==null)) return null;   // só medições de composição
+  let w = n('weight');
+  if(!w){ const prev = history.find(h=>h.t<=t) || history[history.length-1]; w = prev ? prev.w : null }
+  if(!w) return null;
+  const h = n('height');
+  return {t, w:+w.toFixed(2), src:'watch', r:null,
+    m:{fat, fatKg, ffm:n('fat_free_mass'), skeletal, waterL, bmr:n('basal_metabolic_rate')},
+    p:{...profile, ...(h ? {height:Math.round(h)} : {})}};
+}
+$('#fileWatch').onchange = async e=>{
+  const files = [...e.target.files]; e.target.value=''; if(!files.length) return;
+  let added = 0, found = 0, bad = 0;
+  for(const f of files){
+    try{
+      shRecords(await f.text(), f.name).forEach(r=>{
+        const en = shToEntry(r); if(!en) return; found++;
+        if(history.some(h=>Math.abs(h.t-en.t)<60000 && h.src==='watch')) return;
+        history.push(en); added++;
+      });
+    }catch(err){ bad++ }
+  }
+  history.sort((a,b)=>b.t-a.t); store.set('history', history);
+  renderWatch(); renderCompare(); renderGoals(); renderRemind(); renderMetrics();
+  if(added) toast(`${added} medições do relógio importadas`);
+  else if(found) toast('Essas medições do relógio já estavam no histórico');
+  else toast(bad ? 'Não consegui ler esse arquivo' : 'Nenhuma medição de composição corporal no arquivo');
+};
+function lastWatch(){ return history.find(h=>h.src==='watch') }
+function renderWatch(){
+  const el = $('#watchStatus'); if(!el) return;
+  const all = history.filter(h=>h.src==='watch'), last = all[0];
+  el.innerHTML = last
+    ? `<b style="color:var(--text)">${all.length} ${all.length===1?'medição importada':'medições importadas'}</b>. Última: ${new Date(last.t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}.`
+    : 'Nenhuma medição importada ainda.';
+  // destaque da última medição do relógio na tela Medir
+  const card = $('#watchMain'); if(!card) return;
+  if(!last){ card.innerHTML=''; return }
+  const c = entryComp(last), f = v=>v.toFixed(1).replace('.',',');
+  const days = Math.round((Date.now()-last.t)/DAY);
+  card.innerHTML = `<div class="cmp" style="cursor:pointer" id="watchMainCard"><div class="hd" style="margin-bottom:6px">⌚ Bioimpedância real do relógio · ${days<=0?'hoje':days===1?'ontem':`há ${days} dias`}</div>
+    <div class="cols">${c.fat!=null?`<div class="c"><div class="k">Gordura</div><div class="d">${f(c.fat)}<small style="font-size:11px">%</small></div></div>`:''}
+    ${c.skeletal!=null?`<div class="c"><div class="k">Músc. esquelético</div><div class="d">${f(c.skeletal)}<small style="font-size:11px">kg</small></div></div>`:''}
+    ${c.water!=null?`<div class="c"><div class="k">Água</div><div class="d">${f(c.water)}<small style="font-size:11px">%</small></div></div>`:''}
+    ${c.bmr!=null?`<div class="c"><div class="k">Metabolismo</div><div class="d">${Math.round(c.bmr)}</div></div>`:''}</div></div>`;
+  $('#watchMainCard').onclick = ()=>openDetail(history.indexOf(last));
+}
+
 /* ---------- backup ---------- */
 $('#btnExport').onclick = ()=>{
   const d = new Date().toISOString().slice(0,10);
@@ -519,8 +614,8 @@ function renderMetrics(){
   renderBody('#bodyMain', cur.weight && cur.final ? c : null, profile, 'main', cur.weight ? 'Aguardando o peso final…' : 'Suba na balança para ver.');
   renderAnalysis(cur.weight && cur.final ? c : null);
 }
-function metricsHTML(w, R, algo, ex, p){
-  const c = fullComp(w, R, p, algo) || {};
+function metricsHTML(w, R, algo, ex, p, cIn){
+  const c = cIn || fullComp(w, R, p, algo) || {};
   ex = ex || {};
   const items = [
     ['IMC','bmi', c.bmi, '', 1, 40],
@@ -537,7 +632,9 @@ function metricsHTML(w, R, algo, ex, p){
     ['Idade metabólica', null, c.metaAge, 'anos', 0],
     ['Impedância', null, R, 'Ω', 0],
   ].filter(it=>!(it[2]==null && ['Músculo esquelético','Gordura visceral','Idade metabólica'].includes(it[0])));
-  const okNote = algo==='okok' && R===600
+  const okNote = c.src==='watch'
+    ? `<div class="note" style="grid-column:1/-1;border-color:rgba(62,230,181,.35)">⌚ <b>Medido pelo Galaxy Watch</b> (bioimpedância real). Massa óssea e proteína são estimadas a partir da massa magra.</div>`
+    : algo==='okok' && R===600
     ? `<div class="note warn" style="grid-column:1/-1">Sua balança (OKOK, formato C0) envia sempre a mesma impedância, <b>600 Ω</b>: ela não mede a bioimpedância de verdade. Os valores abaixo usam as fórmulas do app OKOK e por isso dependem só do peso, altura, idade e sexo.</div>` : '';
   return okNote + items.map(([k,key,v,u,d,max])=>{
     const has = v!=null && isFinite(v);
@@ -745,7 +842,22 @@ function showWeight(w, final){
 }
 /* comparação com a última medição salva */
 function entryAlgo(h){ return h.algo || (h.r===600 ? 'okok' : null) }
-function entryComp(h){ return fullComp(h.w, h.r, h.p || profile, entryAlgo(h)) }
+function entryComp(h){
+  if(h.src!=='watch' || !h.m) return fullComp(h.w, h.r, h.p || profile, entryAlgo(h));
+  const p = h.p || profile, w = h.w, m = h.m, c = fullComp(w, null, p, null);
+  if(m.fat!=null){ c.fat = m.fat; c.fatKg = m.fatKg ?? w*m.fat/100 }
+  else if(m.fatKg!=null){ c.fatKg = m.fatKg; c.fat = m.fatKg/w*100 }
+  c.ffm = m.ffm ?? (c.fatKg!=null ? w - c.fatKg : null);
+  if(c.ffm!=null){
+    c.bone = 0.055*c.ffm; c.muscle = c.ffm - c.bone; c.musclePct = c.muscle/w*100;
+    const water = m.waterL ?? 0.73*c.ffm; c.water = water/w*100;
+    c.protein = Math.max(0, (c.ffm - water - c.bone)/w*100);
+  }
+  if(m.skeletal!=null) c.skeletal = m.skeletal;
+  if(m.bmr!=null) c.bmr = m.bmr;
+  c.src = 'watch';
+  return c;
+}
 function compareHTML(c, prev, refT){
   const pc = entryComp(prev);
   const rows = [
@@ -1123,7 +1235,7 @@ function renderHistory(){
   el.innerHTML = history.map((h,i)=>{
     const c = entryComp(h);
     return `<div class="hitem" data-i="${i}">
-    <div><div class="w">${h.w.toFixed(1).replace('.',',')} kg</div><div class="d">${new Date(h.t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}</div></div>
+    <div><div class="w">${h.w.toFixed(1).replace('.',',')} kg${h.src==='watch'?' <span class="tag ok" style="margin:0 0 0 4px;vertical-align:middle">⌚ relógio</span>':''}</div><div class="d">${new Date(h.t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}</div></div>
     <div style="display:flex;align-items:center"><div class="m">IMC ${c.bmi.toFixed(1).replace('.',',')}<br>${c.fat!=null?'Gordura '+c.fat.toFixed(1).replace('.',',')+'%':'sem impedância'}</div>
     <span style="color:var(--muted);font-size:20px;margin-left:10px">›</span></div></div>`;
   }).join('');
@@ -1142,7 +1254,7 @@ function openDetail(i){
     ${prev ? compareHTML(c, prev, h.t) : ''}
     <h2>Seu corpo</h2><div id="bodyDetail"></div>
     <h2>Análise</h2>${analysisHTML(c, p)}
-    <h2>Composição corporal</h2><div class="grid">${metricsHTML(h.w, h.r, entryAlgo(h), {}, p)}</div>
+    <h2>Composição corporal</h2><div class="grid">${metricsHTML(h.w, h.r, entryAlgo(h), {}, p, c)}</div>
     ${h.p ? `<p class="small" style="margin-top:10px">Perfil na data: ${h.p.sex==='m'?'masculino':'feminino'}, ${h.p.age} anos, ${h.p.height} cm.</p>` : '<p class="small" style="margin-top:10px">Calculado com o seu perfil atual.</p>'}
     <button class="btn" id="sheetDel" style="width:100%;margin-top:16px;color:var(--bad)">Apagar medição</button>`;
   bodySig.detail = null;
@@ -1152,7 +1264,7 @@ function openDetail(i){
   $('#sheetDel').onclick = e=>{
     const b = e.currentTarget;
     if(!b.dataset.armed){ b.dataset.armed='1'; b.textContent='Toque de novo para confirmar'; return }
-    history.splice(i,1); store.set('history',history); closeDetail(); renderHistory(); renderCompare(); renderGoals(); toast('Medição apagada');
+    history.splice(i,1); store.set('history',history); closeDetail(); renderHistory(); renderCompare(); renderGoals(); renderWatch(); toast('Medição apagada');
   };
 }
 function closeDetail(){ $('#sheet').classList.remove('open'); document.body.style.overflow='' }
@@ -1230,7 +1342,7 @@ window.addEventListener('beforeinstallprompt', e=>{
 window.addEventListener('appinstalled', ()=>{ toast('App instalado'); const b=$('#btnInstall'); if(b) b.remove() });
 
 /* ---------- init ---------- */
-renderProfile(); renderMetrics(); loadImp(); bleSupportNote(); renderGoals(); renderRemind(); renderScaleCard();
+renderProfile(); renderMetrics(); loadImp(); bleSupportNote(); renderGoals(); renderRemind(); renderScaleCard(); renderWatch();
 if(decoder) $('#calInfo').textContent = `Peso: byte ${decoder.off}, ${decoder.end.toUpperCase()}, ÷${decoder.div}`;
 </script>
 </body>
