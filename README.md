@@ -100,11 +100,26 @@ npx vercel --prod
 npx serve .
 ```
 
+## Instalar como app no celular
+
+O Bio Balança é um PWA: depois de publicado em https, pode ser instalado e abre em tela cheia, com ícone próprio e funcionando sem internet.
+
+- **Android (Chrome):** toque no botão **📲 Instalar como app** na tela inicial, ou no menu **⋮ → Instalar app**.
+- **iPhone:** no Safari, toque em **Compartilhar → Adicionar à Tela de Início**. Para usar o Bluetooth, abra o app pelo navegador Bluefy.
+
+Ao publicar uma nova versão do `index.html`, aumente o número em `CACHE` no `sw.js` (ex.: `bio-balanca-v2`) para os celulares baixarem a atualização.
+
 ## Estrutura
 
 ```
 .
-├── index.html   # app completo (HTML, CSS e JavaScript)
+├── index.html              # app completo (HTML, CSS e JavaScript)
+├── manifest.json           # nome, cores e ícones do app instalado
+├── sw.js                   # service worker: cache e funcionamento offline
+├── icon-192.png            # ícone do app
+├── icon-512.png            # ícone do app (alta resolução)
+├── icon-maskable-512.png   # ícone adaptável do Android
+├── apple-touch-icon.png    # ícone do iPhone
 └── README.md
 ```
 
