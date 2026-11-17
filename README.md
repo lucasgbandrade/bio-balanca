@@ -12,8 +12,17 @@ App web que lê o peso de balanças de bioimpedância Bluetooth direto do navega
   - Outros formatos, com calibração automática (você digita o peso do display e o app encontra o valor nos dados).
 - **Busca por sinal**: lista os aparelhos próximos pela força do sinal e reconhece a balança OKOK sozinha.
 - **Composição corporal estimada**: IMC, gordura (% e kg), massa magra, massa muscular, músculo esquelético, água, proteína, massa óssea, gordura visceral, metabolismo basal e idade metabólica.
-- **Comparação imediata** com a última medição salva (peso, gordura, músculo e IMC).
-- **Histórico** com gráfico de peso e gordura.
+- **Comparação imediata** com a última medição salva (peso, gordura, músculo, água e IMC).
+- **Salvamento automático** quando o peso final chega (pode ser desligado no Perfil).
+- **Seu corpo:** ilustração do corpo que se enche conforme água, gordura, músculo e proteína, com esqueleto para os ossos e destaque da gordura visceral.
+- **Análise:** faixa de peso ideal para a sua altura e tipo corporal (gordura × massa muscular).
+- **Metas** de peso e de gordura, com barra de progresso e previsão de quando você chega lá.
+- **Resumo** de 7, 30 ou 90 dias: quanto mudou, quanto foi gordura e quanto foi massa magra, e o ritmo por semana.
+- **Gráfico de evolução** por métrica, com média móvel de 7 dias e linha da meta.
+- **Lembrete de pesagem:** evento repetido na agenda do celular e aviso no app quando a pesagem atrasa.
+- **Backup:** exportar e importar o histórico (.json) e exportar planilha (.csv).
+- **Conexões:** área com a balança salva, busca por sinal e pareamento. Integração com o Samsung Galaxy Watch planejada.
+- **Histórico** com a composição completa de cada medição.
 - **Perfil** (sexo, idade e altura) usado nos cálculos.
 - **Aba Avançado**: log dos dados recebidos, calibração, configuração manual da impedância e modo demonstração.
 - Interface escura, pensada para celular.
